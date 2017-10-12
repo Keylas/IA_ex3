@@ -15,7 +15,7 @@ import logist.topology.Topology.City;
  * An optimal planner for one vehicle.
  */
 @SuppressWarnings("unused")
-public class DeliberativeTemplate implements DeliberativeBehavior {
+public class DeliberativeMain implements DeliberativeBehavior {
 
 	enum Algorithm { BFS, ASTAR }
 	
@@ -86,7 +86,6 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 			// set current city
 			current = task.deliveryCity;
 		}
-		System.out.println("Random: "+plan.totalDistance());
 		return plan;
 	}
 
