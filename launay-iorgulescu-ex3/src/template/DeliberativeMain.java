@@ -66,6 +66,17 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		return plan;
 	}
 	
+	private Plan DFSPlan(City current, TaskSet tasks, double best, Plan sketch) {
+		
+		Plan plan=new Plan(current);
+		
+		
+		
+		return plan;
+	}
+	
+	
+	
 	private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
 		City current = vehicle.getCurrentCity();
 		Plan plan = new Plan(current);
