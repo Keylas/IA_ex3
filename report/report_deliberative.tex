@@ -8,7 +8,7 @@
 
 % Put your group number and names in the author field %
 \title{\bf Excercise 3\\ Implementing a deliberative Agent}
-\author{Group \textnumero : Student 1, Student 2}
+\author{Group \textnumero : 14; Iorgulescu Calin, Launay Clement}
 
 
 % N.B.: The report should not be longer than 3 pages %
@@ -22,23 +22,40 @@
 \subsection{Intermediate States}
 % Describe the state representation %
 
+(description of state):
+
+currentCity + state of tasks (0: not picked up, 1: currently carrying, 2: delivered)
+
+
 \subsection{Goal State}
 % Describe the goal state %
 
 \subsection{Actions}
 % Describe the possible actions/transitions in your model %
 
+Study of what the optimal plan must look like => actions can be resumed to pickup/delivery
+
 
 \section{Implementation}
+
+State: other parameters stored in the class (previous, cost, g, ...)
+Note that they are not taken into account by equals or HashCode
 
 \subsection{BFS}
 % Details of the BFS implementation %
 
 \subsection{A*}
 % Details of the A* implementation %
+Use a TreeSet for q (automatic sort is nice)
+and HashMap for c (cannot use a HashSet because there's no get() while we need to update c since our heuristic is not consistent -see below-)
+=>Follow algorithm
+
 
 \subsection{Heuristic Function}
 % Details of the heuristic functions: main idea, optimality, admissibility %
+
+heuristic(state) = max(task)(currentCity->pickup(task)->deliver(task))
+Best admissible function (not consistent though
 
 
 \section{Results}
