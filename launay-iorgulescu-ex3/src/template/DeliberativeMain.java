@@ -69,6 +69,8 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 		initialize(vehicle, tasks); //take care of setting taskMap and initialState correctly
 
+		Long startTime = System.currentTimeMillis();
+		
 		// Compute the plan with the selected algorithm.
 		switch (algorithm) {
 		case ASTAR:
@@ -81,7 +83,9 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			break;
 		default:
 			throw new AssertionError("Should not happen.");
-		}		
+		}
+		//5:0.026 8:0.2 10:2.2 11:6.1 12:fail
+		System.out.println(tasks.size()+" tasks, result: "+plan.totalDistance()+ " in "+(System.currentTimeMillis()-startTime)+" ms");
 		return plan;
 	}
 
@@ -91,36 +95,34 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 		if (!carriedTasks.isEmpty()) {
 			/*register the carriedTask
-			 *they will  be taken into account by initialize when plan() is called
+			 *they will  be taken into account by initialize() when plan() is called
 			 */
 			this.carriedTasks=carriedTasks;
 		}
 	}
 
 	private void initialize(Vehicle vehicle, TaskSet tasks) {
-
 		
-		
-		int[] taskStatus;
-		int carry = 0;
-
+		int[] initialTaskStatus;
+		int initialCarry = 0;
 		this.taskMap = new HashMap<Integer,Task>();
+		
 		int i=0;
 		if(carriedTasks!=null) {
-			taskStatus = new int[carriedTasks.size()+tasks.size()];
+			initialTaskStatus = new int[carriedTasks.size()+tasks.size()];
 			for(Task t:carriedTasks) {
 				taskMap.put(i, t);
-				taskStatus[i]=1;
-				carry+=t.weight;
+				initialTaskStatus[i]=1;
+				initialCarry+=t.weight;
 				i++;
 			}
-		} else {taskStatus = new int[tasks.size()];}
+		} else {initialTaskStatus = new int[tasks.size()];}
 		for(Task t:tasks) {
 				taskMap.put(i, t);
 				i++;
 		}
 		
-		this.initialState = new State(vehicle.getCurrentCity(), taskStatus, null, 0.0, carry, true);
+		this.initialState = new State(vehicle.getCurrentCity(), initialTaskStatus, null, 0.0, initialCarry, true);
 		
 	}
 
@@ -163,6 +165,8 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		}
 		//we found our solution with node being the final node, extract the corresponding plan and return it
 		if(node==null) {return Plan.EMPTY;}
+		//TODO
+		System.out.println(node.costToReach);
 		return extractPlan(node);
 
 	}
@@ -197,7 +201,6 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			}
 		}
 
-		System.out.println("Distance of plan: "+p.totalDistance());
 		return p;
 	}
 
@@ -296,7 +299,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 					if(taskStatus[i]==NOT_PICKED) {nextCity=taskMap.get(i).pickupCity; nextWeightCarry=this.weightCarried+taskMap.get(i).weight;}
 					else {nextCity=taskMap.get(i).deliveryCity; nextWeightCarry=this.weightCarried-taskMap.get(i).weight;}
 
-					successorList.add(new State(nextCity, tmp, this, inCity.distanceTo(nextCity), nextWeightCarry, computeHeurist));
+					successorList.add(new State(nextCity, tmp, this, this.costToReach+inCity.distanceTo(nextCity), nextWeightCarry, computeHeurist));
 				}
 			}
 			return successorList;
