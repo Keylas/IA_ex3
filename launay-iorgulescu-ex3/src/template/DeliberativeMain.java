@@ -87,7 +87,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			break;
 		case BFS:
 			// ...
-			plan = Plan.EMPTY;
+			plan = BFSPlan();
 			break;
 		default:
 			throw new AssertionError("Should not happen.");
@@ -135,11 +135,24 @@ public class DeliberativeMain implements DeliberativeBehavior {
 	}
 
 
-	private Plan DFSPlan(City current, TaskSet tasks, double best, Plan sketch) {
+	private Plan BFSPlan() {
 
-		Plan plan=new Plan(current);
-
-		return plan;
+		ArrayList<State> q = new ArrayList<State>();
+		q.add(initialState);
+		
+		State bestNode=null;
+		Double bestResult=Double.POSITIVE_INFINITY;
+		while(!q.isEmpty()) {
+			State n = q.remove(0);
+			if(n.delivered==taskMap.size() && n.costToReach<bestResult) {
+				bestResult=n.costToReach;
+				bestNode=n;
+			} else {
+				q.addAll(n.successors(Heuristic.NONE));
+			}
+		}
+		if(bestNode==null) {return Plan.EMPTY;}
+		return extractPlan(bestNode);
 	}
 
 
@@ -294,9 +307,9 @@ public class DeliberativeMain implements DeliberativeBehavior {
 				break;
 
 			/*
-			 * Heuristic ROUNDTRIP:
+			 * Heuristic ROUNDTRIP: /!\ not admissible /!\
 			 * Gather all the cities we'll have to go to at some point,
-			 * and compute the shortest circuit starting from inCity and going through all of them (greedy algorithm)
+			 * and compute a circuit starting from inCity and going through all of them (greedy algorithm)
 			 */
 			case ROUNDTRIP:
 				HashSet<City> citiesToGo = new HashSet<City>();
@@ -327,6 +340,10 @@ public class DeliberativeMain implements DeliberativeBehavior {
 				break;
 
 			default:
+				//Just write down the number of tasks delivered
+				for(int i=0; i<taskStatus.length; i++) {
+					if(taskStatus[i]==DELIVERED) {this.delivered++;}
+				}
 				break;
 			}
 		}
