@@ -28,6 +28,8 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 	enum Algorithm { BFS, ASTAR }
 
+	enum Heuristic {NONE, MAXTRIP, ROUNDTRIP}
+
 	/* Environment */
 	Topology topology;
 	City[] cities;
@@ -40,6 +42,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 	/* the planning class */
 	Algorithm algorithm;
+	Heuristic heuristicToUse;
 
 	State initialState;
 
@@ -60,6 +63,11 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		// Throws IllegalArgumentException if algorithm is unknown
 		algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
 
+		String heuristicName = agent.readProperty("heuristic", String.class, "MAX");
+		// Throws IllegalArgumentException if algorithm is unknown
+		heuristicToUse = Heuristic.valueOf(heuristicName.toUpperCase());
+
+
 		// ...
 	}
 
@@ -67,24 +75,24 @@ public class DeliberativeMain implements DeliberativeBehavior {
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
 		Plan plan;
 
-		initialize(vehicle, tasks); //take care of setting taskMap and initialState correctly
+		initialize(vehicle, tasks, this.heuristicToUse); //take care of setting taskMap and initialState correctly
 
 		Long startTime = System.currentTimeMillis();
-		
+
 		// Compute the plan with the selected algorithm.
 		switch (algorithm) {
 		case ASTAR:
 			// ...
-			plan = aStarPlan();
+			plan = aStarPlan(this.heuristicToUse);
 			break;
 		case BFS:
 			// ...
-			plan = aStarPlan();
+			plan = Plan.EMPTY;
 			break;
 		default:
 			throw new AssertionError("Should not happen.");
 		}
-		//5:0.026 8:0.2 10:2.2 11:6.1 12:fail
+		//TODO 11:0.14 14:0.44 17:2.15 18:OOM
 		System.out.println(tasks.size()+" tasks, result: "+plan.totalDistance()+ " in "+(System.currentTimeMillis()-startTime)+" ms");
 		return plan;
 	}
@@ -101,12 +109,12 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		}
 	}
 
-	private void initialize(Vehicle vehicle, TaskSet tasks) {
-		
+	private void initialize(Vehicle vehicle, TaskSet tasks, Heuristic heuristicToUse) {
+
 		int[] initialTaskStatus;
 		int initialCarry = 0;
 		this.taskMap = new HashMap<Integer,Task>();
-		
+
 		int i=0;
 		if(carriedTasks!=null) {
 			initialTaskStatus = new int[carriedTasks.size()+tasks.size()];
@@ -118,12 +126,12 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			}
 		} else {initialTaskStatus = new int[tasks.size()];}
 		for(Task t:tasks) {
-				taskMap.put(i, t);
-				i++;
+			taskMap.put(i, t);
+			i++;
 		}
-		
-		this.initialState = new State(vehicle.getCurrentCity(), initialTaskStatus, null, 0.0, initialCarry, true);
-		
+
+		this.initialState = new State(vehicle.getCurrentCity(), initialTaskStatus, null, 0.0, initialCarry, heuristicToUse);
+
 	}
 
 
@@ -136,7 +144,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 
 	//Implementation of ASTAR algorithm
-	private Plan aStarPlan() {
+	private Plan aStarPlan(Heuristic heuristicToUse) {
 
 		//Set of "border" nodes. The use of TreeSet automatically sort them on insertion
 		TreeSet<State> q = new TreeSet<State>(new StateComparator());
@@ -148,8 +156,11 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		HashMap<State,Double> c = new HashMap<State,Double>();
 
 
+		int numLoop=0; //feedback info
 		State node=null; //avoid re-instantiation and used as final node when the loop is over
 		while(true) {
+			numLoop++;
+			
 			node = q.pollFirst();
 
 			if(node==null || node.delivered==taskMap.size()) {break;} //if node is final
@@ -158,7 +169,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			if(!c.containsKey(node) || c.get(node)>node.f()) {
 				c.put(node, node.f());
 
-				for(State s: node.successors(true)) {
+				for(State s: node.successors(heuristicToUse)) {
 					q.add(s);
 				}
 			}
@@ -166,7 +177,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		//we found our solution with node being the final node, extract the corresponding plan and return it
 		if(node==null) {return Plan.EMPTY;}
 		//TODO
-		System.out.println(node.costToReach);
+		System.out.println(c.size()+" estimated, "+q.size()+" border, "+numLoop+" loops, final cost: "+node.costToReach +" using ASTAR:"+heuristicToUse);
 		return extractPlan(node);
 
 	}
@@ -201,6 +212,8 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			}
 		}
 
+		//TODO
+		System.out.println(p);
 		return p;
 	}
 
@@ -235,55 +248,94 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		public double heurist=0.0;
 
 
-		public State(City cCity, int[] tStatus, State previousState, double cost, int carry, boolean computeHeurist) {
+		public State(City cCity, int[] tStatus, State previousState, double cost, int carry, Heuristic heuristicToUse) {
 			this.inCity=cCity;
 			this.taskStatus=tStatus;
 			this.previousState=previousState;
 			this.costToReach=cost;
 			this.weightCarried=carry;
 
-			if(computeHeurist) {this.computeHeurist();} //comupute heuristic if necessary (we're using Astar)
+			this.computeHeurist(heuristicToUse); //compute heuristic if necessary (we're using Astar)
 		}
 
 		/*
 		 * Compute the heuristic for this state (called during instantiation)
-		 * Since the heuristic must be admissible (h(s)<=d(s), the true distance),
-		 * we chose h(s)=max{task t not delivered}{ inCity.distanceTo(pickup(t))+pickup(t).distanceTo(delivery(t)) } [in t is not picked up yet]
-		 * 										  {	inCity.distanceTo(delivery(t)) } [if t is currently being held]
+		 * The heuristic must be admissible (h(s)<=d(s), the true distance) for ASTAR to be admissible too
 		 */
-		private void computeHeurist() {
-			double h=0.0; //declared here to avoid redeclaration
+		private void computeHeurist(Heuristic heuristToUse) {
+			switch(heuristToUse) {
 
-			//find a maximum on all tasks
-			for(int i=0; i<taskStatus.length; i++) {
-				switch(taskStatus[i]) {
-				case NOT_PICKED:
-					//Not picked=> we will have to go from where we are to the pickup city, then to the delivery city
-					h=inCity.distanceTo(taskMap.get(i).pickupCity)+cities[taskMap.get(i).pickupCity.id].distanceTo(taskMap.get(i).deliveryCity);
-					break;
-				case HOLDING:
-					//Holding=> we will have to go from where we are to the delivery city
-					h=inCity.distanceTo(taskMap.get(i).deliveryCity);
-					break;
-				case DELIVERED:
-					//Delivered=>Nothing to do, mark that we delivered.
-					this.delivered++;
-					break;
+			/*
+			 * Heuristic MAXTRIP (besd on the worst task distance)
+			 * h(s)=max{task t not delivered}{ inCity.distanceTo(pickup(t))+pickup(t).distanceTo(delivery(t)) } [in t is not picked up yet]
+			 * 										  {	inCity.distanceTo(delivery(t)) } [if t is currently being held]
+			 */
+			case MAXTRIP:
+				double h=0.0;
+
+				//find a maximum on all tasks
+				for(int i=0; i<taskStatus.length; i++) {
+					switch(taskStatus[i]) {
+					case NOT_PICKED:
+						//Not picked=> we will have to go from where we are to the pickup city, then to the delivery city
+						h=inCity.distanceTo(taskMap.get(i).pickupCity)+cities[taskMap.get(i).pickupCity.id].distanceTo(taskMap.get(i).deliveryCity);
+						break;
+					case HOLDING:
+						//Holding=> we will have to go from where we are to the delivery city
+						h=inCity.distanceTo(taskMap.get(i).deliveryCity);
+						break;
+					case DELIVERED:
+						//Delivered=>Nothing to do, mark that we delivered.
+						this.delivered++;
+						break;
+					}
+					if(h>this.heurist) {this.heurist=h;}
 				}
-				if(h>this.heurist) {this.heurist=h;}
-			}
-		}
+				break;
 
-		//The distance function: f=g+h=costToReach+heurist
-		public double f() {
-			return this.costToReach+this.heurist;
+			/*
+			 * Heuristic ROUNDTRIP:
+			 * Gather all the cities we'll have to go to at some point,
+			 * and compute the shortest circuit starting from inCity and going through all of them (greedy algorithm)
+			 */
+			case ROUNDTRIP:
+				HashSet<City> citiesToGo = new HashSet<City>();
+				//Look up all cities to go to
+				for(int i=0; i<taskStatus.length; i++) {
+					if(taskStatus[i]<DELIVERED) {
+						if(taskStatus[i]<HOLDING) {citiesToGo.add(taskMap.get(i).pickupCity);}
+						citiesToGo.add(taskMap.get(i).deliveryCity);
+					} else {this.delivered++;} //also mark the delivered tasks
+				}
+				//Greedy algorithm to compute the shortest circuit
+				City location = this.inCity; //start from current position
+				while(!citiesToGo.isEmpty()) {
+					City closestCity=null;
+					double closestDistance = Double.POSITIVE_INFINITY;
+					//find the closest city
+					for(City c: citiesToGo) {
+						if(location.distanceTo(c)<closestDistance) {
+							closestDistance=location.distanceTo(c);
+							closestCity=c;
+						}
+					}
+					//update and repeat
+					this.heurist+=closestDistance;
+					location=closestCity;
+					citiesToGo.remove(closestCity);
+				}
+				break;
+
+			default:
+				break;
+			}
 		}
 
 
 		/*return a list containing all the possible successors of this state
 		 * it is obtained by going through the task list and trying to make progress for each one if possible
 		 */
-		public ArrayList<State> successors(boolean computeHeurist){ //computeHeurist=true if we're using Astar
+		public ArrayList<State> successors(Heuristic heuristicToUse){
 
 			ArrayList<State> successorList = new ArrayList<State>();
 
@@ -299,12 +351,17 @@ public class DeliberativeMain implements DeliberativeBehavior {
 					if(taskStatus[i]==NOT_PICKED) {nextCity=taskMap.get(i).pickupCity; nextWeightCarry=this.weightCarried+taskMap.get(i).weight;}
 					else {nextCity=taskMap.get(i).deliveryCity; nextWeightCarry=this.weightCarried-taskMap.get(i).weight;}
 
-					successorList.add(new State(nextCity, tmp, this, this.costToReach+inCity.distanceTo(nextCity), nextWeightCarry, computeHeurist));
+					successorList.add(new State(nextCity, tmp, this, this.costToReach+inCity.distanceTo(nextCity), nextWeightCarry, heuristicToUse));
 				}
 			}
 			return successorList;
 		}
 
+		//The distance function: f=g+h=costToReach+heurist
+		public double f() {
+			return this.costToReach+this.heurist;
+		}		
+		
 
 		//Override hashCode() and equals to be able to use State in HashMap and TreeSet
 		@Override

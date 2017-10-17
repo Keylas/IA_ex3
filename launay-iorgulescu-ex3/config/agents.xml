@@ -8,7 +8,7 @@
 		<set class-path="bin/"/>
 		<set class-name="template.DeliberativeMain"/>
 		<set algorithm="ASTAR"/>
-		<set heuristic="dist"/>
+		<set heuristic="ROUNDTRIP"/>
 	</agent>
 	
 	<agent name="deliberative-random">
