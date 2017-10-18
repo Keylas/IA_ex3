@@ -7,8 +7,8 @@
 	<agent name="deliberative-main">
 		<set class-path="bin/"/>
 		<set class-name="template.DeliberativeMain"/>
-		<set algorithm="BFS"/>
-		<set heuristic="ROUNDTRIP"/>
+		<set algorithm="ASTAR"/>
+		<set heuristic="MAXTRIP"/>
 	</agent>
 	
 	<agent name="deliberative-random">

@@ -27,9 +27,15 @@ import logist.topology.Topology.City;
 public class DeliberativeMain implements DeliberativeBehavior {
 
 	enum Algorithm { BFS, ASTAR }
+	enum Heuristic {NONE, MAXTRIP}
+	/*
+	 * Maximum (few seconds responses):
+	 * BFS => 5 tasks
+	 * ASTAR:NONE => 10 tasks
+	 * ASTAR:MAXTRIP => 11 tasks
+	 */
 
-	enum Heuristic {NONE, MAXTRIP, ROUNDTRIP}
-
+	
 	/* Environment */
 	Topology topology;
 	City[] cities;
@@ -76,7 +82,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		Plan plan;
 
 		initialize(vehicle, tasks, this.heuristicToUse); //take care of setting taskMap and initialState correctly
-
+		
 		Long startTime = System.currentTimeMillis();
 
 		// Compute the plan with the selected algorithm.
@@ -92,7 +98,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		default:
 			throw new AssertionError("Should not happen.");
 		}
-		//TODO 11:0.14 14:0.44 17:2.15 18:OOM
+
 		System.out.println(tasks.size()+" tasks, result: "+plan.totalDistance()+ " in "+(System.currentTimeMillis()-startTime)+" ms");
 		return plan;
 	}
@@ -189,7 +195,6 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		}
 		//we found our solution with node being the final node, extract the corresponding plan and return it
 		if(node==null) {return Plan.EMPTY;}
-		//TODO
 		System.out.println(c.size()+" estimated, "+q.size()+" border, "+numLoop+" loops, final cost: "+node.costToReach +" using ASTAR:"+heuristicToUse);
 		return extractPlan(node);
 
@@ -225,7 +230,6 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			}
 		}
 
-		//TODO
 		System.out.println(p);
 		return p;
 	}
@@ -279,7 +283,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 			switch(heuristToUse) {
 
 			/*
-			 * Heuristic MAXTRIP (besd on the worst task distance)
+			 * Heuristic MAXTRIP (based on the worst task distance)
 			 * h(s)=max{task t not delivered}{ inCity.distanceTo(pickup(t))+pickup(t).distanceTo(delivery(t)) } [in t is not picked up yet]
 			 * 										  {	inCity.distanceTo(delivery(t)) } [if t is currently being held]
 			 */
@@ -303,39 +307,6 @@ public class DeliberativeMain implements DeliberativeBehavior {
 						break;
 					}
 					if(h>this.heurist) {this.heurist=h;}
-				}
-				break;
-
-			/*
-			 * Heuristic ROUNDTRIP: /!\ not admissible /!\
-			 * Gather all the cities we'll have to go to at some point,
-			 * and compute a circuit starting from inCity and going through all of them (greedy algorithm)
-			 */
-			case ROUNDTRIP:
-				HashSet<City> citiesToGo = new HashSet<City>();
-				//Look up all cities to go to
-				for(int i=0; i<taskStatus.length; i++) {
-					if(taskStatus[i]<DELIVERED) {
-						if(taskStatus[i]<HOLDING) {citiesToGo.add(taskMap.get(i).pickupCity);}
-						citiesToGo.add(taskMap.get(i).deliveryCity);
-					} else {this.delivered++;} //also mark the delivered tasks
-				}
-				//Greedy algorithm to compute the shortest circuit
-				City location = this.inCity; //start from current position
-				while(!citiesToGo.isEmpty()) {
-					City closestCity=null;
-					double closestDistance = Double.POSITIVE_INFINITY;
-					//find the closest city
-					for(City c: citiesToGo) {
-						if(location.distanceTo(c)<closestDistance) {
-							closestDistance=location.distanceTo(c);
-							closestCity=c;
-						}
-					}
-					//update and repeat
-					this.heurist+=closestDistance;
-					location=closestCity;
-					citiesToGo.remove(closestCity);
 				}
 				break;
 
@@ -405,7 +376,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 	//StateComparator required for TreeMap<State>
 	private class StateComparator implements Comparator<State>{
 		public int compare(State o1, State o2) {
-			if(o1.costToReach+o1.heurist>=o2.costToReach+o2.heurist) {
+			if(o1.f()>=o2.f()) {
 				return 1;
 			}
 			return -1;
