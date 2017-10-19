@@ -67,7 +67,8 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 		// Setup carriedTasks to have the same universe as the tasks.
 		carriedTasks = TaskSet.noneOf(tasks);
 		// Setup tasks like taskSet universe.
-		this.tasks = new Task[tasks.size()];
+		// Since some tasks may be done, allocate space for the largest task id found.
+		this.tasks = new Task[tasks.stream().map(t -> t.id).mapToInt(Integer::intValue).max().orElse(-1) + 1];
 		tasks.forEach(t -> this.tasks[t.id] = t);
 		environmentInitialized = true;
 	}

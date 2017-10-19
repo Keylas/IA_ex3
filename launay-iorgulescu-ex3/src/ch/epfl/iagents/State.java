@@ -95,6 +95,7 @@ public class State {
 	List<State> getSuccessors() {
 		ArrayList<State> states = new ArrayList<>();
 		for (Task t : tasks) {
+			if (t == null) continue;
 			if (taskStatuses[t.id] == HOLDING ||
 				(taskStatuses[t.id] == NOT_PICKED && t.weight <= remainingCapacity))
 				states.add(applyTask(t));

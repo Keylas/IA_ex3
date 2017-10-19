@@ -35,6 +35,7 @@ class Heuristics {
 			*/
 			double result = 0;
 			for (Task t : currentState.tasks) {
+				if (t == null) continue;
 				double value = 0;
 				if (currentState.taskStatuses[t.id] == State.NOT_PICKED) {
 					value = currentState.inCity.distanceTo(t.pickupCity) + t.pickupCity.distanceTo(t.deliveryCity);
