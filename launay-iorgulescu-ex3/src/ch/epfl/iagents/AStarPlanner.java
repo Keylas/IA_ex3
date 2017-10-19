@@ -1,14 +1,12 @@
 package ch.epfl.iagents;
 
-import logist.task.Task;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class AStarPlanner extends Planner {
 	@Override
 	protected State getFinalState(State initialState) {
-		Task[] tasks = initialState.tasks;
+		final int deliverableTaskCount = initialState.getDeliverableTaskCount();
 		// Set of "border" nodes. The use of TreeSet automatically sort them on insertion
 		TreeSet<State> q = new TreeSet<>(new StateComparator());
 		q.add(initialState); //start with origin
@@ -25,7 +23,7 @@ public class AStarPlanner extends Planner {
 			numLoop++;
 
 			s = q.pollFirst();
-			if (s.delivered == tasks.length) break;
+			if (s.delivered == deliverableTaskCount) break;
 			//if not has not been reached yet, or we reached it with a better cost
 			if (!c.containsKey(s) || c.get(s) > s.f()) {
 				c.put(s, s.f());

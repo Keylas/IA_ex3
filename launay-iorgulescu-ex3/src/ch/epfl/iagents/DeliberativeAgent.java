@@ -11,7 +11,11 @@ import logist.task.TaskDistribution;
 import logist.task.TaskSet;
 import logist.topology.Topology;
 
+import java.util.Arrays;
+
 import static ch.epfl.iagents.State.HOLDING;
+import static ch.epfl.iagents.State.NOT_PICKED;
+import static ch.epfl.iagents.State.UNAVAILABLE;
 
 /**
  * An optimal planner for one vehicle.
@@ -45,13 +49,15 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 		// Throws IllegalArgumentException if algorithm is unknown
 		planner = Planner.getPlanner(Algorithm.valueOf(algorithmName.toUpperCase()));
 
-		String heuristicName = agent.readProperty("heuristic", String.class, "MAX");
+		String heuristicName = agent.readProperty("heuristic", String.class, "MAXTRIP");
 		// Throws IllegalArgumentException if algorithm is unknown
 		heuristic = Heuristics.getHeuristic(HeuristicKind.valueOf(heuristicName.toUpperCase()));
 	}
 
 	private int[] getTaskStatuses(TaskSet tasks) {
-		int[] taskStatuses = new int[tasks.size()];
+		int[] taskStatuses = new int[this.tasks.length];
+		Arrays.fill(taskStatuses, UNAVAILABLE);
+		tasks.forEach(t -> taskStatuses[t.id] = NOT_PICKED);
 		carriedTasks.forEach(t -> taskStatuses[t.id] = HOLDING);
 		return taskStatuses;
 	}
@@ -63,14 +69,15 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 		// Setup tasks like taskSet universe.
 		this.tasks = new Task[tasks.size()];
 		tasks.forEach(t -> this.tasks[t.id] = t);
+		environmentInitialized = true;
 	}
 
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
 		if (!environmentInitialized) initialize(tasks);
-		TaskSet actualTasks = TaskSet.union(tasks, carriedTasks);
-		if (actualTasks.isEmpty()) return Plan.EMPTY;
-		return planner.getPlan(new State(vehicle.getCurrentCity(), this.tasks, getTaskStatuses(actualTasks), null, 0.0,
+		if (tasks.isEmpty() && carriedTasks.isEmpty()) return Plan.EMPTY;
+		return planner.getPlan(new State(vehicle.getCurrentCity(), this.tasks, getTaskStatuses(tasks),
+				tasks.size() + carriedTasks.size(), null, 0.0,
 				capacity - carriedTasks.weightSum(), 0, heuristic));
 	}
 

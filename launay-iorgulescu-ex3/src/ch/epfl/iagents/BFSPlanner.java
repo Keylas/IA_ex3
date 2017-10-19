@@ -1,7 +1,5 @@
 package ch.epfl.iagents;
 
-import logist.task.Task;
-
 import java.util.LinkedList;
 import java.util.stream.Collectors;
 
@@ -9,7 +7,7 @@ public class BFSPlanner extends Planner {
 
 	@Override
 	protected State getFinalState(State initialState) {
-		Task[] tasks = initialState.tasks;
+		final int deliverableTaskCount = initialState.getDeliverableTaskCount();
 		LinkedList<State> q = new LinkedList<>();
 		q.add(initialState);
 
@@ -17,7 +15,7 @@ public class BFSPlanner extends Planner {
 		Double bestResult = Double.POSITIVE_INFINITY;
 		while (!q.isEmpty()) {
 			State s = q.poll();
-			if (s.delivered == tasks.length && s.costToReach < bestResult) {
+			if (s.delivered == deliverableTaskCount && s.costToReach < bestResult) {
 				bestResult = s.costToReach;
 				bestState = s;
 			} else {

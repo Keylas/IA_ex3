@@ -11,19 +11,20 @@ import java.util.stream.Stream;
 public class State {
 
 	//The variables that actually make the state: inCity and taskStatuses
-	Topology.City inCity;
-	Task[] tasks;
-	int[] taskStatuses;
+	final Topology.City inCity;
+	final Task[] tasks;
+	final int[] taskStatuses;
 
 	//define constant for readability
-	static final int NOT_PICKED = 0, HOLDING = 1, DELIVERED = 2;
+	static final int NOT_PICKED = 0, HOLDING = 1, DELIVERED = 2, UNAVAILABLE = 3;
 
 	/* These two variables are derived from taskStatuses and kept to avoid recomputing them
 	 * weightCarried is the sum of the weights of the tasks currently held
 	 * delivered is the number of tasks delivered
 	 * A state is final if delivered = #tasks
 	 */
-	int remainingCapacity = 0;
+	private final int remainingCapacity;
+	private final int deliverableTaskCount;
 	int delivered = 0;
 
 	/*
@@ -32,23 +33,24 @@ public class State {
 	 * costToReach = previousState.costToReach + previousState.inCity.distanceTo(this.inCity)
 	 * heurist is the heuristic for this state, which computation is based on taskStatuses
 	 */
-	State previousState = null;
+	final State previousState;
 	/*
 	 * The task that was picked up or delivered from the previous state to arrive at this state.
 	 * For the root state it will be null.
 	 */
-	Task transitionTask = null;
+	Task transitionTask;
 
 	double costToReach;
-	double estimatedCost;
+	private final double estimatedCost;
 
-	Heuristic heuristic;
+	private final Heuristic heuristic;
 
-	State(Topology.City cCity, Task[] tasks, int[] tStatus, State previousState,
+	State(Topology.City cCity, Task[] tasks, int[] tStatus, int deliverableTaskCount, State previousState,
 		  double cost, int remainingCapacity, int delivered, Heuristic heuristic) {
 		this.inCity = cCity;
 		this.tasks = tasks;
 		this.taskStatuses = tStatus;
+		this.deliverableTaskCount = deliverableTaskCount;
 		this.previousState = previousState;
 		this.costToReach = cost;
 		this.remainingCapacity = remainingCapacity;
@@ -58,9 +60,9 @@ public class State {
 		this.estimatedCost = heuristic.getEstimation(this);
 	}
 
-	private State(Topology.City cCity, Task[] tasks, int[] tStatus, State previousState,
+	private State(Topology.City cCity, Task[] tasks, int[] tStatus, int deliverableTaskCount, State previousState,
 		  double cost, int remainingCapacity, int delivered, Heuristic heuristic, Task transitionTask) {
-		this(cCity, tasks, tStatus, previousState, cost, remainingCapacity, delivered, heuristic);
+		this(cCity, tasks, tStatus, deliverableTaskCount, previousState, cost, remainingCapacity, delivered, heuristic);
 		this.transitionTask = transitionTask;
 
 		taskStatuses[transitionTask.id] ++; // NOT_PICKED -> HOLDING ; HOLDING -> DELIVERED.
@@ -77,6 +79,7 @@ public class State {
 				destination,
 				tasks,
 				Arrays.copyOf(taskStatuses, taskStatuses.length),
+				deliverableTaskCount,
 				this,
 				costToReach + inCity.distanceTo(destination),
 				newRemainingCapacity,
@@ -108,6 +111,9 @@ public class State {
 		return this.costToReach + this.estimatedCost;
 	}
 
+	int getDeliverableTaskCount() {
+		return deliverableTaskCount;
+	}
 
 	//Override hashCode() and equals to be able to use State in HashMap and TreeSet
 	@Override
