@@ -106,7 +106,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 	@Override
 	public void planCancelled(TaskSet carriedTasks) {
-
+		
 		if (!carriedTasks.isEmpty()) {
 			/*register the carriedTask
 			 *they will  be taken into account by initialize() when plan() is called
@@ -116,7 +116,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 	}
 
 	private void initialize(Vehicle vehicle, TaskSet tasks, Heuristic heuristicToUse) {
-
+		
 		int[] initialTaskStatus;
 		int initialCarry = 0;
 		this.taskMap = new HashMap<Integer,Task>();
@@ -148,7 +148,9 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		
 		State bestNode=null;
 		Double bestResult=Double.POSITIVE_INFINITY;
+		int numLoop=0;
 		while(!q.isEmpty()) {
+			numLoop++;
 			State n = q.remove(0);
 			if(n.delivered==taskMap.size() && n.costToReach<bestResult) {
 				bestResult=n.costToReach;
@@ -157,7 +159,9 @@ public class DeliberativeMain implements DeliberativeBehavior {
 				q.addAll(n.successors(Heuristic.NONE));
 			}
 		}
+
 		if(bestNode==null) {return Plan.EMPTY;}
+		System.out.println(numLoop+" loops, final cost: "+bestNode.costToReach +" using BFS");
 		return extractPlan(bestNode);
 	}
 
