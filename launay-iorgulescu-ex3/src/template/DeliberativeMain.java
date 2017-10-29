@@ -35,7 +35,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 	 * ASTAR:MAXTRIP => 11 tasks
 	 */
 
-	
+
 	/* Environment */
 	Topology topology;
 	City[] cities;
@@ -82,7 +82,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		Plan plan;
 
 		initialize(vehicle, tasks, this.heuristicToUse); //take care of setting taskMap and initialState correctly
-		
+
 		Long startTime = System.currentTimeMillis();
 
 		// Compute the plan with the selected algorithm.
@@ -106,7 +106,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 	@Override
 	public void planCancelled(TaskSet carriedTasks) {
-		
+
 		if (!carriedTasks.isEmpty()) {
 			/*register the carriedTask
 			 *they will  be taken into account by initialize() when plan() is called
@@ -116,7 +116,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 	}
 
 	private void initialize(Vehicle vehicle, TaskSet tasks, Heuristic heuristicToUse) {
-		
+
 		int[] initialTaskStatus;
 		int initialCarry = 0;
 		this.taskMap = new HashMap<Integer,Task>();
@@ -143,20 +143,24 @@ public class DeliberativeMain implements DeliberativeBehavior {
 
 	private Plan BFSPlan() {
 
+		HashMap<State, Double> passed = new HashMap<State, Double>();
 		ArrayList<State> q = new ArrayList<State>();
 		q.add(initialState);
-		
+
 		State bestNode=null;
 		Double bestResult=Double.POSITIVE_INFINITY;
 		int numLoop=0;
 		while(!q.isEmpty()) {
 			numLoop++;
 			State n = q.remove(0);
-			if(n.delivered==taskMap.size() && n.costToReach<bestResult) {
-				bestResult=n.costToReach;
-				bestNode=n;
-			} else {
-				q.addAll(n.successors(Heuristic.NONE));
+			if(!passed.containsKey(n) || n.costToReach< passed.get(n)) {
+				if(n.delivered==taskMap.size() && n.costToReach<bestResult) {
+					bestResult=n.costToReach;
+					bestNode=n;
+				} else {
+					q.addAll(n.successors(Heuristic.NONE));
+				}
+				passed.put(n, n.costToReach);
 			}
 		}
 
@@ -183,7 +187,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		State node=null; //avoid re-instantiation and used as final node when the loop is over
 		while(true) {
 			numLoop++;
-			
+
 			node = q.pollFirst();
 
 			if(node==null || node.delivered==taskMap.size()) {break;} //if node is final
@@ -353,7 +357,7 @@ public class DeliberativeMain implements DeliberativeBehavior {
 		public double f() {
 			return this.costToReach+this.heurist;
 		}		
-		
+
 
 		//Override hashCode() and equals to be able to use State in HashMap and TreeSet
 		@Override
