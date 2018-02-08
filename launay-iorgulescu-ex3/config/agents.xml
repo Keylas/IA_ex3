@@ -4,13 +4,20 @@
 	<!-- A list of agents and their behavior classes -->
 	
 	<!-- #### DELIBERATIVE AGENTS ### -->
-	<agent name="deliberative-main">
+	<agent name="deliberative-agent">
+		<set class-path="bin/"/>
+		<set class-name="ch.epfl.iagents.DeliberativeAgent"/>
+		<set algorithm="ASTAR"/>
+		<set heuristic="MAXTRIP"/>
+	</agent>
+
+    <agent name="deliberative-main">
 		<set class-path="bin/"/>
 		<set class-name="template.DeliberativeMain"/>
 		<set algorithm="BFS"/>
 		<set heuristic="MAXTRIP"/>
 	</agent>
-	
+
 	<agent name="deliberative-random">
 		<set class-path="bin/"/>
 		<set class-name="template.DeliberativeTemplate"/>
